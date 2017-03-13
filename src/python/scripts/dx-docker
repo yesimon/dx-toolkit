@@ -237,10 +237,33 @@ def local_image_to_aci(image, tmpdir, dirprefix):
     shell_suppress(["which", "docker"])
     shell_suppress(["which", "docker2aci"])
 
+    # Check if imagename is docker image id
+    def is_image_id(image):
+        image_id_list = shell_suppress(["docker", "images", "-q", "--no-trunc"]).split("\n")
+        if any(image in image_id for image_id in image_id_list):
+            print "image id supplied"
+            return True
+        return False
+
+    arg_is_image_id = is_image_id(image)
+    if (arg_is_image_id):
+        # Remove 'sha256:'' prefix if it is supplied, colon cannot exist in the repo:tag format
+        if ('sha256:' in image):
+            image = image.split('sha256:')[1]
+        shell_suppress(["docker", "tag", image, "dx-docker:{}".format(image)])
+
     # Perform the operations to save and subsequently cache Docker image to the platform
     sys.stderr.write(dxpy.utils.printing.YELLOW("Exporting Docker image {}\n".format(image)))
     docker_tarball = tmpdir+"/image.docker.tgz"
+
+    if (arg_is_image_id):
+        image = "dx-docker:{}".format(image)
+
     shell(["docker", "save", "-o", docker_tarball, image])
+
+    if (arg_is_image_id):
+        shell_suppress(["docker", "rmi", image])
+        
     get_aci(image, docker_tarball, prefix=dirprefix)
 
 parser_add_to_applet = subparsers.add_parser('add-to-applet', help="Adds a local Docker image to an applet")
