@@ -257,12 +257,10 @@ def local_image_to_aci(image, tmpdir, dirprefix):
     docker_tarball = tmpdir+"/image.docker.tgz"
 
     if (arg_is_image_id):
-        image = "dx-docker:{}".format(image)
-
-    shell(["docker", "save", "-o", docker_tarball, image])
-
-    if (arg_is_image_id):
-        shell_suppress(["docker", "rmi", image])
+        shell(["docker", "save", "-o", docker_tarball, "dx-docker:{}".format(image)])
+        shell_suppress(["docker", "rmi", "dx-docker:{}".format(image)])
+    else:
+        shell(["docker", "save", "-o", docker_tarball, image])
         
     get_aci(image, docker_tarball, prefix=dirprefix)
 
