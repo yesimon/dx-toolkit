@@ -231,13 +231,27 @@ def local_image_to_aci(image, tmpdir, dirprefix, alternative_export=False):
     shell_suppress(["which", "docker"])
     shell_suppress(["which", "docker2aci"])
 
-    # Check if imagename is docker image id
-    def is_image_id(image):
+    # Check if image is docker image id or digest
+    def is_image_id_or_digest(image):
+        # Remove prefix for string comparisons
+        if ('sha256:' in image):
+            img_id = image.split('sha256:')[1]
+        else:
+            img_id = image
+
         image_id_list = shell_suppress(["docker", "images", "-q", "--no-trunc"]).split("\n")
-        if any(image in image_id for image_id in image_id_list):
-            print "image id supplied"
+        digest_list = shell_suppress(["docker", "images", "--digests", "--filter", "dangling=false", "--format", "{{.Repository}}@{{.Digest}}"]).split("\n")
+
+        # Check if given image id equal to full hash or short hash (first 12 chars)
+        if any(img_id in [image_id.split('sha256:')[1] or img_id == image_id.split('sha256:')[1][:12]] for image_id in image_id_list):
+            sys.stderr.write(dxpy.utils.printing.YELLOW("Image ID: {} found in local docker cache\n".format(iamge)))
             return True
-        return False
+        # Check if give image id is a digest
+        elif any(image in digest for digest in digest_list):
+            sys.stderr.write(dxpy.utils.printing.YELLOW("Digest: {} found in local docker cache\n".format(image)))
+            return True
+        else:    
+            return False
 
     # We have observed an instance where the Docker CLI and docker2aci do not properly export a rootfs.  Here is a hopefully temporary workaround
     if alternative_export:
