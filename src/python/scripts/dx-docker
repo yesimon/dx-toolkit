@@ -249,16 +249,18 @@ def local_image_to_aci(image, tmpdir, dirprefix):
     if (arg_is_image_id):
         # Remove 'sha256:'' prefix if it is supplied, colon cannot exist in the repo:tag format
         if ('sha256:' in image):
-            image = image.split('sha256:')[1]
-        shell_suppress(["docker", "tag", image, "dx-docker:{}".format(image)])
+            image_tag = image.split('sha256:')[1]
+        else:
+            image_tag = image
+        shell_suppress(["docker", "tag", image, "dx-docker:{}".format(image_tag)])
 
     # Perform the operations to save and subsequently cache Docker image to the platform
     sys.stderr.write(dxpy.utils.printing.YELLOW("Exporting Docker image {}\n".format(image)))
     docker_tarball = tmpdir+"/image.docker.tgz"
 
     if (arg_is_image_id):
-        shell(["docker", "save", "-o", docker_tarball, "dx-docker:{}".format(image)])
-        shell_suppress(["docker", "rmi", "dx-docker:{}".format(image)])
+        shell(["docker", "save", "-o", docker_tarball, "dx-docker:{}".format(image_tag)])
+        shell_suppress(["docker", "rmi", "dx-docker:{}".format(image_tag)])
     else:
         shell(["docker", "save", "-o", docker_tarball, image])
         
