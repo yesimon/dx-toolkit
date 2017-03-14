@@ -247,7 +247,7 @@ def local_image_to_aci(image, tmpdir, dirprefix, alternative_export=False):
             sys.stderr.write(dxpy.utils.printing.YELLOW("Image ID: {} found in local docker cache\n".format(image)))
             return True
         # Check if give image id is a digest
-        elif any(image in digest for digest in digest_list if digest.strip()):
+        elif any(image == digest for digest in digest_list if digest.strip()):
             sys.stderr.write(dxpy.utils.printing.YELLOW("Digest: {} found in local docker cache\n".format(image)))
             return True
         else:    
