@@ -243,11 +243,11 @@ def local_image_to_aci(image, tmpdir, dirprefix, alternative_export=False):
         digest_list = shell_suppress(["docker", "images", "--digests", "--filter", "dangling=false", "--format", "{{.Repository}}@{{.Digest}}"]).split("\n")
 
         # Check if given image id equal to full hash or short hash (first 12 chars)
-        if any(img_id in [image_id.split('sha256:')[1] or img_id == image_id.split('sha256:')[1][:12]] for image_id in image_id_list):
-            sys.stderr.write(dxpy.utils.printing.YELLOW("Image ID: {} found in local docker cache\n".format(iamge)))
+        if any(img_id in [image_id.split('sha256:')[1], image_id.split('sha256:')[1][:12]] for image_id in image_id_list if image_id.strip()):
+            sys.stderr.write(dxpy.utils.printing.YELLOW("Image ID: {} found in local docker cache\n".format(image)))
             return True
         # Check if give image id is a digest
-        elif any(image in digest for digest in digest_list):
+        elif any(image in digest for digest in digest_list if digest.strip()):
             sys.stderr.write(dxpy.utils.printing.YELLOW("Digest: {} found in local docker cache\n".format(image)))
             return True
         else:    
