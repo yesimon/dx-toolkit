@@ -297,7 +297,7 @@ def local_image_to_aci(image, tmpdir, dirprefix, alternative_export=False):
         sys.stderr.write(dxpy.utils.printing.YELLOW("Exporting Docker image {}\n".format(image)))
         docker_tarball = tmpdir+"/image.docker.tgz"
         # If image id is given instead of 'repo:tag', tag image as 'dx-docker:id' and export with `docker save dx-docker:id`
-        if is_image_id(image):
+        if is_image_id_or_digest(image):
             # Remove 'sha256:' prefix if it is supplied, colon cannot exist in the repo:tag format
             if ('sha256:' in image):
                 image_id_tag = image.split('sha256:')[1]
