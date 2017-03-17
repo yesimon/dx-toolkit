@@ -36,9 +36,6 @@ from dxpy_testutil import (DXTestCase, DXTestCaseBuildApps, check_output, tempor
                            select_project, cd, override_environment, generate_unique_username_email,
                            without_project_context, without_auth, as_second_user, chdir, run, DXCalledProcessError)
 import dxpy_testutil as testutil
-from dxpy.exceptions import DXAPIError, DXSearchError, EXPECTED_ERR_EXIT_STATUS, HTTPError
-from dxpy.compat import str, sys_encoding, open
-from dxpy.utils.resolver import ResolutionError, _check_resolution_needed as check_resolution
 
 CACHE_DIR = '/tmp/dx-docker-cache'
 
@@ -75,14 +72,21 @@ def list_folder(proj_id, path):
                          'skipping tests that would run dx-docker')
 class TestDXDocker(DXTestCase):
 
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(CACHE_DIR)
+
     def test_dx_docker_pull(self):
         run("dx-docker pull ubuntu:14.04")
         self.assertTrue(os.path.isfile(os.path.join(CACHE_DIR, 'ubuntu%3A14.04.aci')))
         run("dx-docker pull ubuntu:15.04")
         self.assertTrue(os.path.isfile(os.path.join(CACHE_DIR, 'ubuntu%3A15.04.aci')))
     
-    def test_dx_docker_pull_quay(self):
+    def test_dx_docker_pull_silent(self):
+        dx_docker_out = run("dx-docker pull -q busybox").strip()
+        self.assertEqual(dx_docker_out, '')
 
+    def test_dx_docker_pull_quay(self):
         run("dx-docker pull quay.io/ucsc_cgl/samtools")
         self.assertTrue(os.path.isfile(os.path.join(CACHE_DIR, 'quay.io%2Fucsc_cgl%2Fsamtools.aci')))
 
@@ -109,7 +113,7 @@ class TestDXDocker(DXTestCase):
         run("dx-docker run ubuntu:14.04 true")
 
     def test_dx_docker_volume(self):
-        os.makedirs('dxtestdata')
+        os.makedirs('dxdtestdata')
         run("dx-docker run -v dxdtestdata:/data-host ubuntu:14.04 touch /data-host/newfile.txt")
         self.assertTrue(os.path.isfile(os.path.join('dxdtestdata', 'newfile.txt')))
         shutil.rmtree('dxdtestdata')
@@ -140,7 +144,7 @@ class TestDXDocker(DXTestCase):
         shutil.rmtree('tmpapp')
 
     def test_dx_docker_create_asset(self):
-        with temporary_project(select=True) as temp_proj:
+        with temporary_project(select=True) as temp_project:
             test_projectid = temp_project.get_id()
             run("docker pull ubuntu:14.04")
             run("dx-docker create-asset ubuntu:14.04")
@@ -149,7 +153,7 @@ class TestDXDocker(DXTestCase):
             create_folder_in_project(test_projectid, '/testfolder')
             run("dx-docker create-asset busybox -o testfolder")
 
-            ls_out = list_folder(test_projectid, '/testfolder')
+            ls_out = run("dx ls /testfolder").strip()
             self.assertEqual(ls_out, 'busybox')
 
             ls_out = run("dx ls testfolder\\/busybox.tar.gz")
