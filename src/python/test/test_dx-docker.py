@@ -81,8 +81,6 @@ class TestDXDocker(DXTestCase):
         run("dx-docker pull ubuntu:15.04")
         self.assertTrue(os.path.isfile(os.path.join(CACHE_DIR, 'ubuntu%3A15.04.aci')))
     
-    def test_dx_docker_pull_silent(self):
-
     def test_dx_docker_pull_quay(self):
 
         run("dx-docker pull quay.io/ucsc_cgl/samtools")
