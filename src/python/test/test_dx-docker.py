@@ -19,19 +19,8 @@
 
 from __future__ import print_function, unicode_literals, division, absolute_import
 
-import os, sys, unittest, json, tempfile, subprocess, csv, shutil, re, base64, random, time
-import filecmp
-import pipes
-import stat
-import hashlib
-import collections
-import string
-from contextlib import contextmanager
-import pexpect
-import requests
-
+import os, sys, unittest, tempfile, subprocess, shutil, re, random, time
 import dxpy
-from dxpy.scripts import dx_build_app
 from dxpy_testutil import (DXTestCase, DXTestCaseBuildApps, check_output, temporary_project,
                            select_project, cd, override_environment, generate_unique_username_email,
                            without_project_context, without_auth, as_second_user, chdir, run, DXCalledProcessError)
@@ -47,27 +36,16 @@ def create_file_in_project(fname, trg_proj_id, folder=None):
         dxfile = dxpy.upload_string(data, name=fname, project=trg_proj_id, folder=folder, wait_on_close=True)
     return dxfile.get_id()
 
-
 def create_project():
     project_name = "test_dx_cp_" + str(random.randint(0, 1000000)) + "_" + str(int(time.time() * 1000))
     return dxpy.api.project_new({'name': project_name})['id']
 
-
 def rm_project(proj_id):
     dxpy.api.project_destroy(proj_id, {"terminateJobs": True})
-
 
 def create_folder_in_project(proj_id, path):
     dxpy.api.project_new_folder(proj_id, {"folder": path})
 
-def list_folder(proj_id, path):
-    output = dxpy.api.project_list_folder(proj_id, {"folder": path})
-    # Canonicalize to account for possibly different ordering
-    output['folders'] = set(output['folders'])
-    # (objects is a list of dicts-- which are not hashable-- so just
-    # sort them to canonicalize instead of putting them in a set)
-    output['objects'] = sorted(output['objects'])
-    return output
 @unittest.skipUnless(testutil.TEST_DX_DOCKER,
                          'skipping tests that would run dx-docker')
 class TestDXDocker(DXTestCase):
