@@ -156,7 +156,7 @@ class TestDXDocker(DXTestCase):
             ls_out = run("dx ls /testfolder").strip()
             self.assertEqual(ls_out, 'busybox')
 
-            ls_out = run("dx ls testfolder\\/busybox.tar.gz")
+            ls_out = run("dx ls testfolder\\/busybox.tar.gz").strip()
             self.assertEqual(ls_out, 'busybox.tar.gz')
 
     def test_dx_docker_additional_container(self):
