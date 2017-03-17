@@ -148,7 +148,7 @@ class TestDXDocker(DXTestCase):
             test_projectid = temp_project.get_id()
             run("docker pull ubuntu:14.04")
             run("dx-docker create-asset ubuntu:14.04")
-            self.assertEqual(run("dx ls ubuntu\\\\:14.04"), 'ubuntu:14.04')
+            self.assertEqual(run("dx ls ubuntu\\\\:14.04").strip(), 'ubuntu:14.04')
 
             create_folder_in_project(test_projectid, '/testfolder')
             run("dx-docker create-asset busybox -o testfolder")
