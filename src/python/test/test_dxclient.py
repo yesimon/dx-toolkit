@@ -2983,7 +2983,7 @@ class TestDXClientWorkflow(DXTestCase):
         self.assertIn(stage_id + '.number = 32', analysis_desc)
         self.assertIn('foo', analysis_desc)
         analysis_desc = json.loads(run("dx describe " + analysis_id + " --json"))
-        time.sleep(2) # May need to wait for job to be created in the system
+        time.sleep(5) # May need to wait for job to be created in the system
         job_desc = run("dx describe " + analysis_desc["stages"][0]["execution"]["id"])
         self.assertIn(' number = 32', job_desc)
 
@@ -3051,7 +3051,7 @@ class TestDXClientWorkflow(DXTestCase):
         change_inst_type_analysis_id = run("dx run --clone " + analysis_id +
                                            " --instance-type mem2_hdd2_x2 --brief -y").strip()
 
-        time.sleep(2) # May need to wait for any new jobs to be created in the system
+        time.sleep(5) # May need to wait for any new jobs to be created in the system
 
         # make assertions for test cases
         orig_analysis_desc = dxpy.describe(analysis_id)
@@ -3093,7 +3093,7 @@ class TestDXClientWorkflow(DXTestCase):
             self.assertEqual(new_analysis_desc['folder'], '/foo')
             self.assertEqual(new_analysis_desc['tags'], ['sometag'])
             self.assertEqual(new_analysis_desc['properties'], {'propkey': 'propval'})
-            time.sleep(2)
+            time.sleep(5)
             new_job_desc = dxpy.describe(new_analysis_desc['stages'][0]['execution']['id'])
             self.assertEqual(new_job_desc['project'], other_proj_id)
             self.assertEqual(new_job_desc['input']['number'], 32)
@@ -3121,7 +3121,7 @@ class TestDXClientWorkflow(DXTestCase):
         self.assertTrue(job_id.startswith('job-'))
 
         # wait for events to propagate and for the job to be created
-        time.sleep(2)
+        time.sleep(5)
 
         # Running the workflow again with no changes should result in
         # the job getting reused
@@ -3160,7 +3160,7 @@ class TestDXClientWorkflow(DXTestCase):
         stg_req_id = run('dx run myworkflow --instance-type an=awful=name=mem2_hdd2_x2 ' +
                          '--instance-type second=mem2_hdd2_x1 -y --brief').strip()
 
-        time.sleep(2) # give time for all jobs to be populated
+        time.sleep(5) # give time for all jobs to be populated
 
         no_req_desc = dxpy.describe(no_req_id)
         self.assertEqual(no_req_desc['stages'][0]['execution']['instanceType'],
@@ -3218,7 +3218,7 @@ class TestDXClientWorkflow(DXTestCase):
         # only modify one
         per_stg_folders_id_3 = run(cmd + '--stage-output-folder ' + stage_ids[0] + ' /hello').strip()
 
-        time.sleep(2) # give time for all jobs to be generated
+        time.sleep(5) # give time for all jobs to be generated
 
         def expect_stage_folders(analysis_id, first_stage_folder, second_stage_folder):
             analysis_desc = dxpy.describe(analysis_id)
