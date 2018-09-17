@@ -1,0 +1,15 @@
+{ "name": "long_arg_list",
+  "title": "long_arg_list",
+  "summary" : "long list of input arguments",
+  "runSpec": {
+    "file": "run.sh",
+    "interpreter": "bash",
+    "distribution": "Ubuntu",
+    "release": "16.04"
+  },
+  "inputSpec": [
+    {"name": "foo", "class": "array:file"}
+  ],
+  "outputSpec": [
+  ]
+}
