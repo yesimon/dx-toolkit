@@ -1,6 +1,4 @@
 main() {
-    dx-download-all-inputs
-
     # The script below was causing a cat command line error in a dxWDL
     # generated applet.
 
@@ -142,6 +140,4 @@ base64 -d ${DX_FS_ROOT}/source.wdl.uu64 > ${DX_FS_ROOT}/source.wdl
   }]
 }
 EOL
-
-    dx-upload-all-outputs
 }

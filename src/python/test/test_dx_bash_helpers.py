@@ -369,6 +369,26 @@ class TestDXBashHelpers(DXTestCase):
             verify_files_in_dir("/", ["A.txt", "B.txt", "C.txt", "num_chrom.txt"], dxproj)
 
 
+@unittest.skipUnless(testutil.TEST_RUN_JOBS, 'skipping tests that would run jobs')
+class TestDXBashHelpersLargeArg(DXTestCase):
+        def test_large_arg_size(self):
+            with temporary_project('TestDXBashHelpers.large_arg_size temporary project') as dxproj:
+                env = update_environ(DX_PROJECT_CONTEXT_ID=dxproj.get_id())
+
+                # Build the applet, patching in the bash helpers from the
+                # local checkout
+                applet_id = build_app_with_bash_helpers('large_arg_size', dxproj.get_id())
+
+                # Run the applet
+                applet_args = ['-ifoo=1234567890ABCDEFG_JABERWOKI_IS_ON_THE_LOOSE'] * 2
+                cmd_args = ['dx', 'run', '--yes', '--brief', applet_id]
+                cmd_args.extend(applet_args)
+
+                job_id = run(cmd_args, env=env).strip()
+                dxpy.DXJob(job_id).wait_on_done()
+
+
+
 @unittest.skipUnless(testutil.TEST_RUN_JOBS and testutil.TEST_BENCHMARKS,
                      'skipping tests that would run jobs, or, run benchmarks')
 class TestDXBashHelpersBenchmark(DXTestCase):
