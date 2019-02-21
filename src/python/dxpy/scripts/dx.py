@@ -2783,13 +2783,9 @@ def run_body(args, executable, dest_proj, dest_path, preset_inputs=None, input_n
                                   **(args.instance_type or {}))
 
     # TODO: implement cloning with --instance-count
-    # if args.sys_reqs_from_clone and not isinstance(args.instance_count, str):
-    #     args.instance_count = dict({stage: reqs['instanceCount'] for stage, reqs in list(args.sys_reqs_from_clone.items())},
-    #                               **(args.instance_type or {}))
-
-    if args.instance_count < 2:
-            err_exit(exception=DXCLIError(
-                    '--instance-count value must be larger than 1'))
+    if args.sys_reqs_from_clone and not isinstance(args.instance_count, str):
+        args.instance_count = dict({fn: reqs['clusterSpec'] for fn, reqs in list(args.sys_reqs_from_clone.items())},
+                                  **(args.instance_count or {}))
 
     # Since full clusterSpec must be passed to the API server, merge the cluster
     # spec defined in the app with the instance_count by taking the app's spec
