@@ -46,14 +46,14 @@ from ..cli.parsers import (no_color_arg, delim_arg, env_args, stdout_args, all_a
                            find_by_properties_and_tags_args, process_find_by_property_args, process_dataobject_args,
                            process_single_dataobject_output_args, find_executions_args, add_find_executions_search_gp,
                            set_env_from_args, extra_args, process_extra_args, DXParserError, exec_input_args,
-                           instance_type_arg, process_instance_type_arg, get_update_project_args,
+                           instance_type_arg, process_instance_type_arg, process_instance_count_arg, get_update_project_args,
                            property_args, tag_args, contains_phi, process_phi_param)
 from ..cli.exec_io import (ExecutableInputs, format_choices_or_suggestions)
 from ..cli.org import (get_org_invite_args, add_membership, remove_membership, update_membership, new_org, update_org,
                        find_orgs, org_find_members, org_find_projects, org_find_apps)
 from ..exceptions import (err_exit, DXError, DXCLIError, DXAPIError, network_exceptions, default_expected_exceptions,
                           format_exception)
-from ..utils import warn, group_array_by_field, normalize_timedelta, normalize_time_input
+from ..utils import warn, group_array_by_field, normalize_timedelta, normalize_time_input, instance_count_to_sys_reqs
 from ..utils.batch_utils import (batch_run, batch_launch_args)
 
 from ..app_categories import APP_CATEGORIES
@@ -2775,12 +2775,53 @@ def run_batch_all_steps(args, executable, dest_proj, dest_path, input_json, run_
 
 # Shared code for running an executable ("dx run executable"). At the end of this method,
 # there is a fork between the case of a single executable, and a batch run.
-def run_body(args, executable, dest_proj, dest_path, preset_inputs=None, input_name_prefix=None):
+def run_body(args, executable, dest_proj, dest_path, preset_inputs=None, input_name_prefix=None, executable_desc=None):
     input_json = _get_input_for_run(args, executable, preset_inputs)
 
     if args.sys_reqs_from_clone and not isinstance(args.instance_type, str):
         args.instance_type = dict({stage: reqs['instanceType'] for stage, reqs in list(args.sys_reqs_from_clone.items())},
                                   **(args.instance_type or {}))
+
+    # TODO: implement cloning with --instance-count
+    # if args.sys_reqs_from_clone and not isinstance(args.instance_count, str):
+    #     args.instance_count = dict({stage: reqs['instanceCount'] for stage, reqs in list(args.sys_reqs_from_clone.items())},
+    #                               **(args.instance_type or {}))
+
+    if args.instance_count < 2:
+            err_exit(exception=DXCLIError(
+                    '--instance-count value must be larger than 1'))
+
+    # Since full clusterSpec must be passed to the API server, merge the cluster
+    # spec defined in the app with the instance_count by taking the app's spec
+    # and overwriting initialInstanceCount with args.instance_count.
+    merged_cluster_spec = {} # e.g. {'fn': {'clusterSpec': {initialInstanceCount: .., version: ..}}}
+    if args.instance_count:
+        executable_describe = executable.describe()
+        app_sys_reqs = executable_describe['runSpec'].get('systemRequirements', {})
+
+        # Map arg.instance_counts to entry points
+        entrypoint_to_instance_count = instance_count_to_sys_reqs(args.instance_count)
+
+        try:
+            entrypoint_to_instance_count = {k: int(v) for k, v in entrypoint_to_instance_count.items()}
+        except:
+            err_exit(exception=DXCLIError(
+                    'Values passed to --instance-count must be integers'))
+
+        # Overwrite the cluster's instance count in the app_sys_reqs with the requested instance count
+        for entrypoint, reqs in app_sys_reqs.items():
+            # if the given entrypoint was specified in the arg.instance_count, then use it,
+            # otherwise default to the "*" entrypoint
+            requested_instance_count = entrypoint_to_instance_count.get(entrypoint,
+                                                                        entrypoint_to_instance_count.get("*"))
+            if requested_instance_count is not None and "clusterSpec" in reqs:
+                # copy the clusterSpec from the app and then overwrite the initialInstanceCount
+                merged_cluster_spec[entrypoint] = {"clusterSpec": reqs["clusterSpec"]}
+                merged_cluster_spec[entrypoint]["clusterSpec"]["initialInstanceCount"] = requested_instance_count
+
+        if not merged_cluster_spec:
+            err_exit(exception=DXCLIError(
+                    '--instance-count is not supported for entrypoints without clusterSpec'))
 
     if args.debug_on:
         if 'All' in args.debug_on:
@@ -2803,12 +2844,13 @@ def run_body(args, executable, dest_proj, dest_path, preset_inputs=None, input_n
         "stage_instance_types": args.stage_instance_types,
         "stage_folders": args.stage_folders,
         "rerun_stages": args.rerun_stages,
+        "merged_cluster_spec": merged_cluster_spec,
         "extra_args": args.extra_args
     }
 
     if args.priority == "normal" and not args.brief:
         special_access = set()
-        executable_desc = executable.describe()
+        executable_desc = executable_desc or executable.describe()
         write_perms = ['UPLOAD', 'CONTRIBUTE', 'ADMINISTER']
         def check_for_special_access(access_spec):
             if not access_spec:
@@ -3193,8 +3235,10 @@ def run(args):
 
     handler = try_call(get_exec_handler, args.executable, args.alias)
 
-    if args.depends_on and \
-            (isinstance(handler, dxpy.DXWorkflow) or isinstance(handler, dxpy.DXGlobalWorkflow)):
+    is_workflow = isinstance(handler, dxpy.DXWorkflow)
+    is_global_workflow = isinstance(handler, dxpy.DXGlobalWorkflow)
+
+    if args.depends_on and (is_workflow or is_global_workflow):
         err_exit(exception=DXParserError("-d/--depends-on cannot be supplied when running workflows."),
                  expected_exceptions=(DXParserError,))
 
@@ -3207,9 +3251,6 @@ def run(args):
                 'Unable to find project to run the app in. ' +
                 'Please run "dx select" to set the working project, or use --folder=project:path'
             ))
-
-    is_workflow = isinstance(handler, dxpy.DXWorkflow)
-    is_global_workflow = isinstance(handler, dxpy.DXGlobalWorkflow)
 
     # Get region from the project context
     args.region = None
@@ -3227,6 +3268,15 @@ def run(args):
             dest_path = dxpy.config.get('DX_CLI_WD', '/')
 
     process_instance_type_arg(args, is_workflow or is_global_workflow)
+
+    # Validate and process instance_count argument
+    if args.instance_count:
+        if is_workflow or is_global_workflow:
+            err_exit(exception=DXCLIError(
+                '--instance-count is not supported for workflows'
+            ))
+        process_instance_count_arg(args)
+
     run_body(args, handler, dest_proj, dest_path)
 
 def terminate(args):
@@ -4650,6 +4700,10 @@ parser_run.add_argument('--batch-tsv', dest='batch_tsv', metavar="FILE",
                                   'of the executable input arguments. A job will be launched ' +
                                   'for each table row.',
                                   width_adjustment=-24))
+parser_run.add_argument('--instance-count',
+                               metavar='INSTANCE_COUNT_OR_MAPPING',
+                               help=fill('Specify instance count(s) for jobs this executable will run', width_adjustment=-24),
+                               action='append')
 parser_run.add_argument('--input-help',
                         help=fill('Print help and examples for how to specify inputs',
                                   width_adjustment=-24),
